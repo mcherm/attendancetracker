@@ -1,0 +1,135 @@
+<html>
+  <head>
+    <title>Attendance Tracker</title>
+    <style type="text/css">
+      * {
+        font-family: Arial;
+      }
+      div.title {
+        font-size: x-large;
+        font-weight: bold;
+      }
+      span.teamName {
+        font-weight: bold;
+      }
+      .names {
+          color: blue;
+      }
+      .sampleMessage {
+          font-weight: bold;
+      }
+      div#eventCode {
+        padding: 2px;
+        border: 2px solid;
+        display: inline-block;
+        font-weight: bold;
+      }
+      div#randomSelection {
+        border: 1px solid;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">Attendance Tracker</div>
+    <div>
+      <ul id="teamList">
+      </ul>
+    </div>
+    <div class="instructions">To track your attendance, text the event code below, a space, then your EID to 484-469-9490:</div>
+    <div id="eventCode"></div>
+    <div class="instructions">Example: text "<span class="sampleMessage"><span id="eventCode2"></span> abc123</span>" to 484-469-9490.</div>
+    <div id="extraFeaturesToggle" onclick="toggleExtraFeatures()">.</div>
+    <div id="extraFeatures" style="visibility: hidden">
+      <div id="randomSelection">
+        <div>Random Selection</div>
+        <div><button type="button" onclick="pickAndShowRandomPerson().then(()=>null)">Pick One</button></div>
+        <div><ol id="randomSelectList"></ol></div>
+      </div>
+    </div>
+    <script>
+
+      function toggleExtraFeatures() {
+        document.getElementById("extraFeatures").style.visibility="visible";
+      }
+
+      /*
+       * Returns a randomly selected person who has signed in.
+       */
+      async function pickRandomPerson() {
+        const jsonResponse = await getParticipantData();
+        const names = jsonResponse.participant_names;
+        return names[Math.floor(Math.random() * names.length)];
+
+      }
+
+      function showRandomPerson(name) {
+        selectListElem = document.getElementById("randomSelectList");
+        const newListEntry = document.createElement("li");
+        newListEntry.appendChild(document.createTextNode(name));
+        selectListElem.appendChild(newListEntry);
+      }
+
+      async function pickAndShowRandomPerson() {
+          const name = await pickRandomPerson();
+          showRandomPerson(name);
+      }
+
+      /*
+       * Returns a randomly generated event code
+       */
+      function makeEventCode() {
+        const codeLength = 3;
+        const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let code = "";
+        for (var i=0; i<codeLength; i++) {
+          code += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        return code;
+      }
+
+      var eventCode = makeEventCode();
+
+      document.getElementById('eventCode').innerHTML = eventCode;
+      document.getElementById('eventCode2').innerHTML = eventCode;
+
+      /*
+       * Async function that loads the current data from AWS.
+       */
+      async function getParticipantData() {
+          const url = `https://0i7bi8pdkb.execute-api.us-east-1.amazonaws.com/prod/events/${eventCode}/participants`;
+          const fetchResponse = await fetch(url);
+          const jsonResponse = await fetchResponse.json();
+          return jsonResponse;
+      }
+
+      /*
+       * Async function to load the data for the current eventCode and
+       * update the screen accordingly.
+       */
+      async function refreshData() {
+        const jsonResponse = await getParticipantData();
+        const teamListElem = document.getElementById('teamList');
+        teamListElem.innerHTML = "";
+        Object.entries(jsonResponse.teams).forEach(
+          ([teamName, people]) => {
+            const newListEntry = document.createElement("li");
+            const teamNameElem = document.createElement("span");
+            teamNameElem.setAttribute("class", "teamName");
+            teamNameElem.appendChild(document.createTextNode(teamName));
+            newListEntry.appendChild(teamNameElem);
+            newListEntry.appendChild(document.createTextNode(": "));
+            const personListElem = document.createElement("span");
+            personListElem.setAttribute("class", "names");
+            people.forEach((name) => {
+              personListElem.appendChild(document.createTextNode(name + ", "));
+            });
+            newListEntry.appendChild(personListElem);
+            teamListElem.appendChild(newListEntry);
+          }
+        );
+      }
+      setInterval(refreshData, 1000); // Refresh every second
+    </script>
+  </body>
+</html>
